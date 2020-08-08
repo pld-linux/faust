@@ -7,7 +7,7 @@ Summary:	Faust - Programming Language for Audio Applications and Plugins
 Name:		faust
 Version:	2.20.2
 %define		libsrev	127e5bf
-Release:	0.1
+Release:	1
 License:	GPL v2 and BSD
 Group:		Applications/Multimedia
 # SF URL: http://downloads.sourceforge.net/%{name}/%{name}-%{version}.tar.gz
@@ -19,19 +19,6 @@ Patch0:		libmicrohttpd.patch
 Patch1:		libdir.patch
 URL:		https://faust.grame.fr/
 BuildRequires:	cmake
-#BuildRequires:	-
-#BuildRequires:	-
-#BuildRequires:	-
-#BuildRequires:	-
-#BuildRequires:	-
-#BuildRequires:	-
-#BuildRequires:	-
-#BuildRequires:	-
-#BuildRequires:	-
-#BuildRequires:	autoconf
-#BuildRequires:	automake
-#BuildRequires:	intltool
-#BuildRequires:	libtool
 BuildRoot:	%{tmpdir}/%{name}-%{version}-root-%(id -u -n)
 
 %define	_noautostrip	.*/.*libsndfile\..*
