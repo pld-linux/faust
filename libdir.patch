@@ -1,0 +1,310 @@
+commit baf3ef0ab497d6b829c729638d5941753ba74dcd
+Author: Dominique Fober <fober@grame.fr>
+Date:   Wed Jan 22 12:04:23 2020 +0100
+
+    support to install libraries in lib64 (or any other name). The faust code is also change due to the --libdir faust option.
+
+diff --git a/build/CMakeLists.txt b/build/CMakeLists.txt
+index 12f2f937d..323341e6f 100644
+--- a/build/CMakeLists.txt
++++ b/build/CMakeLists.txt
+@@ -13,14 +13,17 @@ get_major_minor_patch( ${VERSION} )
+ set (SOVERS ${VERSION_MAJOR})
+ message (STATUS "Configuring version ${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}")
+ 
++if (NOT DEFINED LIBSDIR)
++	set ( LIBSDIR  lib)
++endif()
++
+ get_filename_component(ROOT ${CMAKE_CURRENT_SOURCE_DIR} DIRECTORY)
+ set (SRCDIR ${ROOT}/compiler)
+ set (BINDIR ${CMAKE_CURRENT_SOURCE_DIR}/bin)
+-set (LIBDIR ${CMAKE_CURRENT_SOURCE_DIR}/lib)
++set (LIBDIR ${CMAKE_CURRENT_SOURCE_DIR}/${LIBSDIR})
+ 
+ set (CMAKE_CXX_STANDARD 11)
+ 
+-
+ #######################################
+ # Output options
+ option ( DEPLOYMENT_TARGET 	"[MacOS]"	off )
+@@ -140,6 +143,7 @@ endif()
+ if (MSVC)
+ 	set (FAUST_DEFINITIONS ${FAUST_DEFINITIONS} -DMSVisualStudio)
+ else()
++	set (FAUST_DEFINITIONS ${FAUST_DEFINITIONS} -DLIBDIR="${LIBSDIR}")
+ 	set(CMAKE_CXX_FLAGS_DEBUG "-g -Wextra -Wno-unused-parameter")
+ 	set(CMAKE_CXX_FLAGS_RELEASE "-O3 -Wextra -Wno-unused-parameter")
+ endif()
+@@ -255,6 +259,7 @@ set (ARCHINC ${ARCHDIR}/faust)
+ set (ARCHDIRS ${ARCHINC}/au ${ARCHINC}/audio ${ARCHINC}/dsp ${ARCHINC}/gui ${ARCHINC}/midi ${ARCHINC}/unity ${ARCHINC}/vst)
+ 
+ message (STATUS "Install location is ${CMAKE_INSTALL_PREFIX}")
++message (STATUS "Install libraries in ${CMAKE_INSTALL_PREFIX}/${LIBSDIR}")
+ message (STATUS "Include targets: ${INSTALL_TARGETS} ${SUBTARGETS}")
+ 
+ ####################################
+@@ -265,16 +270,16 @@ endif()
+ 
+ install ( TARGETS ${INSTALL_TARGETS}
+ 	RUNTIME DESTINATION ${CMAKE_INSTALL_PREFIX}/bin
+-    LIBRARY DESTINATION ${CMAKE_INSTALL_PREFIX}/lib
+-    ARCHIVE DESTINATION ${CMAKE_INSTALL_PREFIX}/lib
++    LIBRARY DESTINATION ${CMAKE_INSTALL_PREFIX}/${LIBSDIR}
++    ARCHIVE DESTINATION ${CMAKE_INSTALL_PREFIX}/${LIBSDIR}
+     PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_PREFIX}/include/faust
+ )
+ 
+ if (INCLUDE_DYNAMIC)
+ install ( TARGETS dynamiclib
+-	RUNTIME DESTINATION ${CMAKE_INSTALL_PREFIX}/lib
+-    LIBRARY DESTINATION ${CMAKE_INSTALL_PREFIX}/lib
+-    ARCHIVE DESTINATION ${CMAKE_INSTALL_PREFIX}/lib
++	RUNTIME DESTINATION ${CMAKE_INSTALL_PREFIX}/${LIBSDIR}
++    LIBRARY DESTINATION ${CMAKE_INSTALL_PREFIX}/${LIBSDIR}
++    ARCHIVE DESTINATION ${CMAKE_INSTALL_PREFIX}/${LIBSDIR}
+ )
+ endif()
+ 
+@@ -386,7 +391,7 @@ install (
+ # install ios lib
+ if (NOT WIN32)
+ 	install (
+-		FILES     ${ARCHDIR}/ios-libsndfile.a DESTINATION ${CMAKE_INSTALL_PREFIX}/lib
++		FILES     ${ARCHDIR}/ios-libsndfile.a DESTINATION ${CMAKE_INSTALL_PREFIX}/${LIBSDIR}
+ 		PERMISSIONS OWNER_READ OWNER_WRITE GROUP_READ WORLD_READ
+ 	)
+ endif()
+diff --git a/build/Makefile b/build/Makefile
+index e3cf94f01..b8484e294 100644
+--- a/build/Makefile
++++ b/build/Makefile
+@@ -18,6 +18,7 @@ VERSION := 2.21.6
+ CACHE  = $(FAUSTDIR)/CMakeCache.txt
+ BCACHE = $(FAUSTDIR)/backends.txt
+ TCACHE = $(FAUSTDIR)/targets.txt
++LCACHE = $(FAUSTDIR)/libsdir.txt
+ ifeq ($(system),  MINGW)
+ 	GENERATOR ?= $(shell [ -f $(CACHE) ] && (grep CMAKE_GENERATOR:INTERNAL $(CACHE) | cut -d= -f2) || echo MSYS Makefiles)
+ 	NATIVEPACK = winpack
+@@ -57,6 +58,7 @@ BUILDOPT ?= --config Release
+ JOBS	 ?= -j 4
+ BACKENDS ?= $(shell [ -f $(BCACHE) ] && (grep BACKENDS $(BCACHE) | cut -d= -f2) || echo regular.cmake)
+ TARGETS  ?= $(shell [ -f $(TCACHE) ] && (grep TARGETS $(TCACHE) | cut -d= -f2) || echo regular.cmake)
++LIBSDIR  ?= $(shell [ -f $(LCACHE) ] && (grep LIBSDIR $(LCACHE) | cut -d= -f2) || echo lib)
+ EMCC 	 ?= emcc
+ 
+ #===============================================================
+@@ -77,6 +79,10 @@ endif
+ all: $(PROJ)
+ 	cmake --build $(FAUSTDIR) $(BUILDOPT) -- $(JOBS)
+ 
++full:
++	$(MAKE) cmake BACKENDS=all.cmake TARGETS=all.cmake 
++	cmake --build $(FAUSTDIR) $(BUILDOPT) -- $(JOBS)
++
+ clean:
+ 	cmake --build $(FAUSTDIR) --target clean
+ 
+@@ -89,6 +95,7 @@ help:
+ 	@echo "-------- FAUST compiler makefile --------"
+ 	@echo "Available targets are:"
+ 	@echo " 'all' (default) : builds the current targets (as defined by your targets setup)."
++	@echo " 'full'          : builds the all targets with all backends."
+ 	@echo
+ 	@echo "Targets that require specific setup (see TARGETS option):"
+ 	@echo " 'faust' 	 : builds the Faust compiler."
+@@ -99,7 +106,6 @@ help:
+ 	@echo " 'oscdynamic' : builds the OSC library in dynamic mode."
+ 	@echo " 'httpdynamic': builds the HTTPD library in dynamic mode."
+ 	@echo " 'oscandroid' : builds the OSC library for Android."
+-	@echo
+ 	@echo " 'ioslib'     : builds the libfaust static lib for iOS (makes use of the ios.cmake backend)"
+ 	@echo
+ 	@echo "Cleaning:"
+@@ -112,6 +118,7 @@ help:
+ 	@echo
+ 	@echo "Available options:"
+ 	@echo "  FAUSTDIR=<dir>              : the compilation directory. Default to '$(FAUSTDIR)'"
++	@echo "  LIBSDIR                     : the libraries destination directory, default: $(LIBSDIR)"
+ 	@echo "  GENERATOR=<a cmake generator>: see cmake -h. Default to '$(GENERATOR)'"
+ 	@echo "  CMAKEOPT=<cmake options>    : pass options to cmake for project generation."
+ 	@echo "  BUILDOPT=<cmake options>    : pass options to cmake at build time (default to $(BUILDOPT))."
+@@ -283,12 +290,10 @@ silent: $(FAUSTDIR)
+ 	cd $(FAUSTDIR) && cmake -DCMAKE_VERBOSE_MAKEFILE=OFF ..
+ 
+ cmake: $(FAUSTDIR)
+-	cd $(FAUSTDIR) && cmake -C ../backends/$(BACKENDS) -C ../targets/$(TARGETS) $(CMAKEOPT) -G '$(GENERATOR)' ..
++	cd $(FAUSTDIR) && cmake -C ../backends/$(BACKENDS) -C ../targets/$(TARGETS) $(CMAKEOPT) -DLIBSDIR=$(LIBSDIR) -G '$(GENERATOR)' ..
+ 	@echo BACKENDS=$(BACKENDS) > $(BCACHE)
+ 	@echo TARGETS=$(TARGETS) > $(TCACHE)
+-
+-reset: $(FAUSTDIR)
+-	cd $(FAUSTDIR) && cmake -C ../backends/$(BACKENDS) $(CMAKEOPT) -DINCLUDE_STATIC=off -DINCLUDE_DYNAMIC=off -DINCLUDE_HTTP=on -DOSCDYNAMIC=off -DHTTPDYNAMIC=off ..
++	@echo LIBSDIR=$(LIBSDIR) > $(LCACHE)
+ 
+ 
+ #===============================================================
+diff --git a/build/README.md b/build/README.md
+index 3b60d063c..641423a51 100644
+--- a/build/README.md
++++ b/build/README.md
+@@ -2,7 +2,7 @@
+ # How to compile
+ 
+ ### Prerequisites
+-- you must have [cmake](https://cmake.org/) version 3.4.0 or greater installed.
++- you must have [cmake](https://cmake.org/) version 3.7.2 or greater installed.
+ - you must have [LLVM](http://llvm.org/) version 3.8 or greater installed to compile the llvm backend.
+ - you must have [libmicrohttpd](https://www.gnu.org/software/libmicrohttpd/) installed to compile the http library.
+ - on Windows, you have the option to use MS [Visual Studio](http://www.microsoft.com/express/) or the [MSYS2](http://www.msys2.org/) environment. The current Makefile is targetting MSYS2 by default. See Windows specific notes.
+@@ -26,7 +26,7 @@ The Makefile includes 2 kind of targets, addressing the 2 phases of the compilat
+ By default, you can simply type `make` in the `build` folder to compile the **Faust** compiler and the **OSC and HTTP** libraries.
+ On output, you'll find applications in the `build/bin` folder and libraries in the `build/lib` folder.
+ 
+-Type `make help` for details on targets and options.
++**Type `make help` for details on targets and options.**
+ 
+ ## Customizing the embedded backends
+ The `backends` folder contains a set of files describing the Faust backends to be embedded into  each possible output (compiler, static library, dynamic library). By default, the project makes use of `backends.cmake`.
+@@ -48,6 +48,35 @@ You can have a look at the `Makefile` for examples of cmake invocations and at t
+ 
+ **Warning**: running cmake from the build folder may override the existing Makefile.
+ 
++
++## Installing on Linux
++
++The default install directory is `/usr/local`:
++
++`> sudo make install`  
++
++#### Custom installation
++
++To install in another folder:
++
++`> make install PREFIX=/your_folder/folder`  
++
++
++#### Faust libraries location
++By default, all faust libraries are installed in a `lib` folder.
++Some system may require to have the 64 bits libraries installed in a `lib64` folder.
++To specify another destination folder for libraries, use the LIBSDIR option e.g.:
++
++`> make LIBSDIR=lib64`  
++
++or when your project is already generated:
++
++`> make cmake LIBSDIR=lib64`  
++
++
++**WARNING**: all the compilation chain must be aware of the libraries destination folder. Indeed, `faust --libdir` must give the correct location.
++
++
+ ## Compiling on Windows
+ #### Using MSYS2
+ Use of the `make` command assumes that you have [MSYS2](http://www.msys2.org/) installed with development tools. Read the MSYS2 [specific note](README-MSYS2.md).
+diff --git a/build/http/CMakeLists.txt b/build/http/CMakeLists.txt
+index 5dfc4cde7..63e5b06c8 100644
+--- a/build/http/CMakeLists.txt
++++ b/build/http/CMakeLists.txt
+@@ -21,6 +21,9 @@ option ( LIBMICROHTTPD_LDFLAGS 	"Manual link flags for libmicrohttpd"	off )
+ if (NOT DEFINED LIBDIR)
+ 	set (LIBDIR lib)
+ endif()
++if (NOT DEFINED LIBSDIR)
++	set (LIBSDIR lib)
++endif()
+ if (NOT DEFINED ROOT)
+ 	set (ROOT ../..)
+ endif()
+@@ -190,9 +193,9 @@ if (PACK)
+ endif()
+ 
+ install ( TARGETS ${TARGETS}
+-    RUNTIME DESTINATION ${CMAKE_INSTALL_PREFIX}/lib 
+-    ARCHIVE DESTINATION ${CMAKE_INSTALL_PREFIX}/lib 
+-    LIBRARY DESTINATION ${CMAKE_INSTALL_PREFIX}/lib
++	RUNTIME DESTINATION ${CMAKE_INSTALL_PREFIX}/${LIBSDIR}
++    LIBRARY DESTINATION ${CMAKE_INSTALL_PREFIX}/${LIBSDIR}
++    ARCHIVE DESTINATION ${CMAKE_INSTALL_PREFIX}/${LIBSDIR}
+     PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_PREFIX}/include/faust/gui
+ )
+ 
+diff --git a/build/interp/CMakeLists.txt b/build/interp/CMakeLists.txt
+index efdf4e81e..76ad085c3 100644
+--- a/build/interp/CMakeLists.txt
++++ b/build/interp/CMakeLists.txt
+@@ -12,11 +12,15 @@ set (SOVERS 0)
+ option ( ITPDYNAMIC         "Include Faust Interpreter dynamic library" off )
+ option ( USE_LLVM_CONFIG    "Force use off llvm-config" on )
+ 
++
+ #######################################
+ # check for variables that are normally set at upper level
+ if (NOT DEFINED LIBDIR)
+ 	set (LIBDIR lib)
+ endif()
++if (NOT DEFINED LIBSDIR)
++	set (LIBSDIR lib)
++endif()
+ if (NOT DEFINED ROOT)
+ 	set (ROOT ../..)
+ endif()
+@@ -109,9 +113,9 @@ if (PACK)
+ endif()
+ 
+ install ( TARGETS ${TARGETS}
+-    RUNTIME DESTINATION ${CMAKE_INSTALL_PREFIX}/lib 
+-    ARCHIVE DESTINATION ${CMAKE_INSTALL_PREFIX}/lib 
+-    LIBRARY DESTINATION ${CMAKE_INSTALL_PREFIX}/lib
++	RUNTIME DESTINATION ${CMAKE_INSTALL_PREFIX}/${LIBSDIR}
++    LIBRARY DESTINATION ${CMAKE_INSTALL_PREFIX}/${LIBSDIR}
++    ARCHIVE DESTINATION ${CMAKE_INSTALL_PREFIX}/${LIBSDIR}
+     PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_PREFIX}/include/faust/dsp
+ )
+ 
+diff --git a/build/osc/CMakeLists.txt b/build/osc/CMakeLists.txt
+index 9bcaa73d5..92d96d097 100644
+--- a/build/osc/CMakeLists.txt
++++ b/build/osc/CMakeLists.txt
+@@ -16,6 +16,9 @@ option ( OSCDYNAMIC 	"Include Faust OSC dynamic library"	off )
+ if (NOT DEFINED LIBDIR)
+ 	set (LIBDIR lib)
+ endif()
++if (NOT DEFINED LIBSDIR)
++	set (LIBSDIR lib)
++endif()
+ if (NOT DEFINED ROOT)
+ 	set (ROOT ../..)
+ endif()
+@@ -136,9 +139,9 @@ if (PACK)
+ endif()
+ 
+ install ( TARGETS ${TARGETS}
+-    RUNTIME DESTINATION ${CMAKE_INSTALL_PREFIX}/lib 
+-    ARCHIVE DESTINATION ${CMAKE_INSTALL_PREFIX}/lib 
+-    LIBRARY DESTINATION ${CMAKE_INSTALL_PREFIX}/lib
++	RUNTIME DESTINATION ${CMAKE_INSTALL_PREFIX}/${LIBSDIR}
++    LIBRARY DESTINATION ${CMAKE_INSTALL_PREFIX}/${LIBSDIR}
++    ARCHIVE DESTINATION ${CMAKE_INSTALL_PREFIX}/${LIBSDIR}
+     PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_PREFIX}/include/faust/osc
+ )
+ 
+diff --git a/compiler/libcode.cpp b/compiler/libcode.cpp
+index 9c9c7e65e..4d12ec46a 100644
+--- a/compiler/libcode.cpp
++++ b/compiler/libcode.cpp
+@@ -727,9 +727,12 @@ static bool processCmdline(int argc, const char* argv[])
+ #define kPSEP '/'
+ #endif
+ 
++#ifndef LIBDIR
++#define LIBDIR "lib"
++#endif
+ static void printLibDir()
+ {
+-    cout << gGlobal->gFaustRootDir << kPSEP << "lib" << endl;
++    cout << gGlobal->gFaustRootDir << kPSEP << LIBDIR << endl;
+ }
+ static void printIncludeDir()
+ {

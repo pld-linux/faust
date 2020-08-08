@@ -1,0 +1,22 @@
+diff --git a/architecture/httpdlib/src/httpd/HTTPDServer.cpp b/architecture/httpdlib/src/httpd/HTTPDServer.cpp
+index 0c5dfa67d..a9ccec8e4 100644
+--- a/architecture/httpdlib/src/httpd/HTTPDServer.cpp
++++ b/architecture/httpdlib/src/httpd/HTTPDServer.cpp
+@@ -115,7 +115,7 @@ HTTPDServer::~HTTPDServer() { stop(); }
+ //--------------------------------------------------------------------------
+ bool HTTPDServer::start(int port)
+ {
+-	fServer = MHD_start_daemon (MHD_USE_SELECT_INTERNALLY, port, NULL, NULL, _answer_to_connection, this, MHD_OPTION_END);
++	fServer = MHD_start_daemon (MHD_USE_SELECT_INTERNALLY, port, NULL, NULL, (MHD_AccessHandlerCallback)_answer_to_connection, this, MHD_OPTION_END);
+ 	return fServer != 0;
+ }
+ 
+@@ -221,7 +221,7 @@ int HTTPDServer::answer (struct MHD_Connection *connection, const char *url, con
+ 	}
+ 
+ 	Message msg (url);
+-	MHD_get_connection_values (connection, t, _get_params, &msg);
++	MHD_get_connection_values (connection, t, (MHD_KeyValueIterator)_get_params, &msg);
+ 	vector<Message*> outMsgs;
+ 	if (fDebug) {
+ 		cout << method << ": ";
