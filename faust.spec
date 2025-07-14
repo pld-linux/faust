@@ -62,8 +62,8 @@ Statyczna biblioteka %{name}.
 
 %prep
 %setup -q -a1
-%patch0 -p1
-%patch1 -p1
+%patch -P0 -p1
+%patch -P1 -p1
 
 %{__mv} faustlibraries-%{libsrev}*/* libraries/
 %{__rm} -r faustlibraries-%{libsrev}*
