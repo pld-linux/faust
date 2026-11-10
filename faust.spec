@@ -5,18 +5,16 @@
 #
 Summary:	Faust - Programming Language for Audio Applications and Plugins
 Name:		faust
-Version:	2.20.2
-%define		libsrev	127e5bf
+Version:	2.88.0
+%define		libsrev	b0e363a
 Release:	1
 License:	GPL v2 and BSD
 Group:		Applications/Multimedia
 # SF URL: http://downloads.sourceforge.net/%{name}/%{name}-%{version}.tar.gz
 Source0:	https://github.com/grame-cncm/faust/archive/%{version}/%{name}-%{version}.tar.gz
-# Source0-md5:	2e4f2db77a1229edf7eb18f14ddd6617
+# Source0-md5:	190134892bb2759a20d926d3bc57732c
 Source1:	https://github.com/grame-cncm/faustlibraries/archive/%{libsrev}/%{name}libraries-%{version}-%{libsrev}.tar.gz
-# Source1-md5:	a0402ea3d24a3fcfb2b8e2e5f251e329
-Patch0:		libmicrohttpd.patch
-Patch1:		libdir.patch
+# Source1-md5:	81c8e7a28547e8e4b1b6d7c5d7d28d61
 URL:		https://faust.grame.fr/
 BuildRequires:	cmake
 BuildRoot:	%{tmpdir}/%{name}-%{version}-root-%(id -u -n)
@@ -62,18 +60,32 @@ Statyczna biblioteka %{name}.
 
 %prep
 %setup -q -a1
-%patch -P0 -p1
-%patch -P1 -p1
 
 %{__mv} faustlibraries-%{libsrev}*/* libraries/
 %{__rm} -r faustlibraries-%{libsrev}*
 
 %{__sed} -E -i -e '1s,#!\s*/usr/bin/env\s+python3(\s|$),#!%{__python3}\1,' \
       tools/faust2appls/faust2atomsnippets \
-      tools/faust2appls/faust2md
+      tools/faust2appls/faust2md \
+      architecture/clap/faust-hot-reload.py \
+      architecture/daisy/daisy_soundfile_gen.py \
+      architecture/daisy/sd_upload.py \
+      architecture/wwise/orchestrator.py \
+      tools/faust2appls/faust2clap \
+      tools/faust2appls/faust2sc.py \
+      tools/faust2appls/faust2sublimecompletions \
+      tools/faust2appls/faust2tidalcycles \
+      tools/faust2appls/faust2wwise.py
 
 %{__sed} -E -i -e '1s,#!\s*/usr/bin/env\s+ruby(\s|$),#!%{__ruby}\1,' \
       tools/faust2sc-1.0.0/faust2sc
+
+%{__sed} -E -i -e '1s,#!\s*/usr/bin/env\s+bash(\s|$),#!/bin/bash\1,' \
+      architecture/android/gradlew \
+      architecture/smartKeyboard/android/gradlew \
+      tools/faust2appls/faust2cpalrust \
+      tools/faust2appls/faust2jackrust \
+      tools/faust2appls/faust2portaudiorust
 
 %build
 CMAKEOPT="\
@@ -100,6 +112,12 @@ rm -rf $RPM_BUILD_ROOT
 	PREFIX=%{_prefix} \
 	LIBSDIR=%{_lib} \
 	DESTDIR=$RPM_BUILD_ROOT
+
+%{__mv} $RPM_BUILD_ROOT{%{_bindir},%{_datadir}/faust}/usage.sh
+
+%{__sed} -E -i -e 's|usage.sh|%{_datadir}/faust/usage.sh|' \
+	$RPM_BUILD_ROOT%{_bindir}/faust2* \
+	$RPM_BUILD_ROOT%{_bindir}/faustremote
 
 %clean
 rm -rf $RPM_BUILD_ROOT
