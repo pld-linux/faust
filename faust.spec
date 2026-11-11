@@ -5,16 +5,17 @@
 #
 Summary:	Faust - Programming Language for Audio Applications and Plugins
 Name:		faust
-Version:	2.88.0
-%define		libsrev	b0e363a
-Release:	2
+Version:	2.79.3
+%define		libsrev	7f0a235
+Release:	1
 License:	GPL v2 and BSD
 Group:		Applications/Multimedia
 # SF URL: http://downloads.sourceforge.net/%{name}/%{name}-%{version}.tar.gz
 Source0:	https://github.com/grame-cncm/faust/archive/%{version}/%{name}-%{version}.tar.gz
-# Source0-md5:	190134892bb2759a20d926d3bc57732c
+# Source0-md5:	440ae7ae8b44d93a478a2fedb278c390
 Source1:	https://github.com/grame-cncm/faustlibraries/archive/%{libsrev}/%{name}libraries-%{version}-%{libsrev}.tar.gz
-# Source1-md5:	81c8e7a28547e8e4b1b6d7c5d7d28d61
+# Source1-md5:	059b358612aad08ab59f5855003175d7
+Patch0:		cstdint.patch
 URL:		https://faust.grame.fr/
 BuildRequires:	cmake
 BuildRoot:	%{tmpdir}/%{name}-%{version}-root-%(id -u -n)
@@ -60,6 +61,7 @@ Statyczna biblioteka %{name}.
 
 %prep
 %setup -q -a1
+%patch -P0 -p1
 
 %{__mv} faustlibraries-%{libsrev}*/* libraries/
 %{__rm} -r faustlibraries-%{libsrev}*
@@ -67,15 +69,9 @@ Statyczna biblioteka %{name}.
 %{__sed} -E -i -e '1s,#!\s*/usr/bin/env\s+python3(\s|$),#!%{__python3}\1,' \
       tools/faust2appls/faust2atomsnippets \
       tools/faust2appls/faust2md \
-      architecture/clap/faust-hot-reload.py \
-      architecture/daisy/daisy_soundfile_gen.py \
-      architecture/daisy/sd_upload.py \
-      architecture/wwise/orchestrator.py \
-      tools/faust2appls/faust2clap \
       tools/faust2appls/faust2sc.py \
       tools/faust2appls/faust2sublimecompletions \
-      tools/faust2appls/faust2tidalcycles \
-      tools/faust2appls/faust2wwise.py
+      tools/faust2appls/faust2tidalcycles
 
 %{__sed} -E -i -e '1s,#!\s*/usr/bin/env\s+ruby(\s|$),#!%{__ruby}\1,' \
       tools/faust2sc-1.0.0/faust2sc

@@ -1,0 +1,26 @@
+commit e2887fef7b0e816db5e01ccc64d983f1d18833cb
+Author: Jean-Michaël Celerier <jeanmichael.celerier+github@gmail.com>
+Date:   Sun Jan 18 14:08:04 2026 -0500
+
+    Add cstdint include to Schedule.hh
+    
+    Otherwise:
+    
+    ```
+    /run/build/faust/compiler/DirectedGraph/Schedule.hh:153:10: error: unknown type name 'uint64_t'
+      153 |     for (uint64_t i = 0; i < P.size(); i++) {
+          |          ^
+    ```
+
+diff --git a/compiler/DirectedGraph/Schedule.hh b/compiler/DirectedGraph/Schedule.hh
+index e4592520b..5554b605e 100644
+--- a/compiler/DirectedGraph/Schedule.hh
++++ b/compiler/DirectedGraph/Schedule.hh
+@@ -14,6 +14,7 @@
+ #pragma once
+ #include <algorithm>  // for std::find
+ #include <cassert>
++#include <cstdint>
+ #include <functional>
+ #include <iostream>
+ #include <list>
