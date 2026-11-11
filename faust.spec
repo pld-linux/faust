@@ -7,7 +7,7 @@ Summary:	Faust - Programming Language for Audio Applications and Plugins
 Name:		faust
 Version:	2.88.0
 %define		libsrev	b0e363a
-Release:	1
+Release:	2
 License:	GPL v2 and BSD
 Group:		Applications/Multimedia
 # SF URL: http://downloads.sourceforge.net/%{name}/%{name}-%{version}.tar.gz
@@ -90,6 +90,7 @@ Statyczna biblioteka %{name}.
 %build
 CMAKEOPT="\
 	-DCMAKE_VERBOSE_MAKEFILE=ON \
+	-DCMAKE_STRIP:FILEPATH=/bin/true \
 	-DCMAKE_BUILD_TYPE=%{!?debug:PLD}%{?debug:Debug} \
 	-DCMAKE_INSTALL_PREFIX:PATH=%{_prefix} \
 	-DCMAKE_CXX_FLAGS_PLD='%{rpmcxxflags}' \
@@ -100,6 +101,7 @@ CMAKEOPT="\
 	-DCMAKE_MODULE_LINKER_FLAGS_PLD='%{rpmldflags}'"
 
 %{__make} \
+	RELEASE_TYPE=PLD \
 	JOBS=%{?_smp_mflags} \
 	PREFIX=%{_prefix} \
 	LIBSDIR=%{_lib} \
@@ -109,6 +111,8 @@ CMAKEOPT="\
 rm -rf $RPM_BUILD_ROOT
 
 %{__make} install \
+	RELEASE_TYPE=PLD \
+	CMAKEOPT="$CMAKEOPT" \
 	PREFIX=%{_prefix} \
 	LIBSDIR=%{_lib} \
 	DESTDIR=$RPM_BUILD_ROOT
